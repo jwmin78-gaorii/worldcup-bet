@@ -95,4 +95,20 @@ if not df_data.empty:
     
     st.subheader("📈 실시간 팀별 배당률 및 예측 배당금")
     
-    team_stats = df_data.
+    team_stats = df_data.groupby("예측 우승팀")["배팅 금액"].sum().reset_index()
+    team_stats.columns = ["팀명", "팀별 총 배팅액"]
+    
+    team_counts = df_data["예측 우승팀"].value_counts().reset_index()
+    team_counts.columns = ["팀명", "투표수"]
+    team_stats = pd.merge(team_stats, team_counts, on="팀명")
+    
+    team_stats["실시간 배당률"] = (total_pool / team_stats["팀별 총 배팅액"]).round(2)
+    team_stats["실시간 배당률"] = team_stats["실시간 배당률"].map('{:.2f}배'.format)
+    
+    team_stats["팀별 총 배팅액"] = team_stats["팀별 총 배팅액"].map('{:,}원'.format)
+    team_stats = team_stats.sort_values(by="투표수", ascending=False).reset_index(drop=True)
+    st.table(team_stats)
+    
+    st.caption("ℹ️ 배당률과 배당금은 다른 사람들이 배팅을 추가할 때마다 실시간으로 변동됩니다.")
+else:
+    st.info("아직 배팅에 참여한 사람이 없습니다. 첫 배팅을 입력해 보세요!")
