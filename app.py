@@ -18,7 +18,7 @@ teams_32 = [
 ]
 teams_32.sort()
 
-# 파일 읽기 함수 (데이터가 없거나 열이 안 맞으면 빈 틀을 만들어줍니다)
+# 파일 읽기 함수
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -34,21 +34,51 @@ df_data = load_data()
 # 가로선
 st.markdown("---")
 
-# 사용자 입력 UI
-st.subheader("🎲 배팅 참여하기")
-name = st.text_input("당신의 이름을 입력하세요:", placeholder="예: 홍길동")
-selected_team = st.selectbox("우승할 것 같은 팀을 선택하세요:", teams_32)
-amount = st.number_input("배팅할 금액을 입력하세요 (원/포인트):", min_value=1000, value=10000, step=1000)
+# 탭 구성 (배팅하기 / 수정 및 취소)
+tab1, tab2 = st.tabs(["🎲 배팅 참여하기", "🛠️ 내 배팅 수정/취소"])
 
-if st.button("배팅 제출하기", use_container_width=True):
-    if name.strip() == "":
-        st.error("이름을 입력해 주세요!")
-    else:
-        new_data = pd.DataFrame([{"이름": name, "예측 우승팀": selected_team, "배팅 금액": amount}])
-        df_data = pd.concat([df_data, new_data], ignore_index=True)
-        df_data.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
-        st.success(f"🎉 {name}님의 배팅이 완료되었습니다! ({selected_team}에 {amount:,}원)")
-        st.rerun()
+with tab1:
+    name = st.text_input("당신의 이름을 입력하세요:", placeholder="예: 홍길동", key="insert_name")
+    selected_team = st.selectbox("우승할 것 같은 팀을 선택하세요:", teams_32, key="insert_team")
+    amount = st.number_input("배팅할 금액을 입력하세요 (원/포인트):", min_value=1000, value=10000, step=1000, key="insert_amount")
+
+    if st.button("배팅 제출하기", use_container_width=True):
+        if name.strip() == "":
+            st.error("이름을 입력해 주세요!")
+        elif name.strip() in df_data["이름"].values:
+            st.error("이미 배팅을 하셨습니다! 수정을 원하시면 '내 배팅 수정/취소' 탭을 이용해 주세요.")
+        else:
+            new_data = pd.DataFrame([{"이름": name.strip(), "예측 우승팀": selected_team, "배팅 금액": amount}])
+            df_data = pd.concat([df_data, new_data], ignore_index=True)
+            df_data.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
+            st.success(f"🎉 {name}님의 배팅이 완료되었습니다! ({selected_team}에 {amount:,}원)")
+            st.rerun()
+
+with tab2:
+    edit_name = st.text_input("배팅을 수정/취소할 이름을 입력하세요:", placeholder="예: 홍길동", key="edit_name")
+    
+    if edit_name.strip() in df_data["이름"].values:
+        user_row = df_data[df_data["이름"] == edit_name.strip()].iloc[0]
+        st.info(f"📢 현재 배팅 내역: **{user_row['예측 우승팀']}**에 **{user_row['배팅 금액']:,}원**")
+        
+        new_selected_team = st.selectbox("새로운 우승 예측팀 선택:", teams_32, index=teams_32.index(user_row['예측 우승팀']), key="update_team")
+        new_amount = st.number_input("새로운 배팅 금액 입력:", min_value=1000, value=int(user_row['배팅 금액']), step=1000, key="update_amount")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✏️ 배팅 정보 수정", use_container_width=True):
+                df_data.loc[df_data["이름"] == edit_name.strip(), ["예측 우승팀", "배팅 금액"]] = [new_selected_team, new_amount]
+                df_data.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
+                st.success("배팅 정보가 수정되었습니다!")
+                st.rerun()
+        with col2:
+            if st.button("❌ 배팅 취소 (삭제)", use_container_width=True):
+                df_data = df_data[df_data["이름"] != edit_name.strip()]
+                df_data.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
+                st.success("배팅이 정상적으로 취소되었습니다.")
+                st.rerun()
+    elif edit_name.strip() != "":
+        st.warning("입력하신 이름으로 등록된 배팅 내역이 없습니다.")
 
 st.markdown("---")
 
@@ -56,33 +86,13 @@ st.markdown("---")
 st.subheader("📊 현재 배팅 현황")
 
 if not df_data.empty:
-    # 전체 총 배팅 금액 계산
     total_pool = df_data["배팅 금액"].sum()
     st.metric(label="💰 총 누적 배팅 금액", value=f"{total_pool:,} 원")
     
-    # 개인별 배팅 내역 출력
     df_display = df_data.copy()
     df_display["배팅 금액"] = df_display["배팅 금액"].map('{:,}원'.format)
     st.dataframe(df_display, use_container_width=True)
     
-    # 팀별 통계 및 실시간 배당금 계산
     st.subheader("📈 실시간 팀별 배당률 및 예측 배당금")
     
-    team_stats = df_data.groupby("예측 우승팀")["배팅 금액"].sum().reset_index()
-    team_stats.columns = ["팀명", "팀별 총 배팅액"]
-    
-    team_counts = df_data["예측 우승팀"].value_counts().reset_index()
-    team_counts.columns = ["팀명", "투표수"]
-    team_stats = pd.merge(team_stats, team_counts, on="팀명")
-    
-    # 배당률 계산
-    team_stats["실시간 배당률"] = (total_pool / team_stats["팀별 총 배팅액"]).round(2)
-    team_stats["실시간 배당률"] = team_stats["실시간 배당률"].map('{:.2f}배'.format)
-    
-    team_stats["팀별 총 배팅액"] = team_stats["팀별 총 배팅액"].map('{:,}원'.format)
-    team_stats = team_stats.sort_values(by="투표수", ascending=False).reset_index(drop=True)
-    st.table(team_stats)
-    
-    st.caption("ℹ️ 배당률과 배당금은 다른 사람들이 배팅을 추가할 때마다 실시간으로 변동됩니다.")
-else:
-    st.info("아직 배팅에 참여한 사람이 없습니다. 첫 배팅을 입력해 보세요!")
+    team_stats = df_data.
