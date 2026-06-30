@@ -20,13 +20,12 @@ teams_32 = [
 ]
 teams_32.sort()
 
-# 파일 읽기 함수 (데이터 강제 숫자 변환 추가)
+# 파일 읽기 함수
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
             df = pd.read_csv(DATA_FILE)
             if "배팅 금액" in df.columns:
-                # '원'이나 쉼표가 들어가 있다면 제거하고 숫자로 강제 변환
                 df["배팅 금액"] = df["배팅 금액"].astype(str).str.replace("원", "").str.replace(",", "")
                 df["배팅 금액"] = pd.to_numeric(df["배팅 금액"], errors='coerce').fillna(10000).astype(int)
                 return df
@@ -100,38 +99,52 @@ st.subheader("📊 현재 배팅 현황")
 
 if not df_data.empty:
     total_pool = df_data["배팅 금액"].sum()
-    st.metric(label="💰 총 누적 배팅 금액", value=f"{total_pool:,} 원")
+    st.metric(label="💰 총 누적 판돈 (전체 배팅 금액)", value=f"{total_pool:,} 원")
     
+    # 팀별 총 판돈 사전 계산 (개인별 상금 계산용)
+    team_total_dict = df_data.groupby("예측 우승팀")["배팅 금액"].sum().to_dict()
+    
+    # 1. 개인별 배팅 현황 표 구성 (실제 받는 예상 금액 포함)
     df_display = df_data.copy()
+    
+    def calculate_personal_prize(row):
+        team = row["예측 우승팀"]
+        my_amount = row["배팅 금액"]
+        team_total = team_total_dict.get(team, my_amount)
+        # 내 상금 = 총 판돈 * (내가 해당 팀에 기여한 지분율)
+        # 즉, 내 상금 = 총 판돈 * (내 배팅금 / 팀 총 배팅금) -> (총 판돈 / 팀 총 배팅금) * 내 배팅금 = 배당률 * 내 배팅금
+        if team_total > 0:
+            return int((total_pool / team_total) * my_amount)
+        return my_amount
+
+    df_display["적중 시 예상 상금"] = df_display.apply(calculate_personal_prize, axis=1)
+    
+    # 포맷팅 적용
     df_display["배팅 금액"] = df_display["배팅 금액"].map('{:,}원'.format)
+    df_display["적중 시 예상 상금"] = df_display["적중 시 예상 상금"].map('{:,}원'.format)
+    
     st.dataframe(df_display, use_container_width=True)
     
-    st.subheader("📈 실시간 팀별 배당률 및 예측 상금")
-    
+    # 2. 팀별 실시간 요약 정보 표 구성
+    st.subheader("📈 실시간 팀별 배당률 요약")
     try:
-        # 팀별 총 배팅액 계산
         team_stats = df_data.groupby("예측 우승팀")["배팅 금액"].sum().reset_index()
         team_stats.columns = ["팀명", "팀별 총 배팅액"]
         
-        # 투표수 계산
         team_counts = df_data["예측 우승팀"].value_counts().reset_index()
         team_counts.columns = ["팀명", "투표수"]
         team_stats = pd.merge(team_stats, team_counts, on="팀명")
         
-        # 배당률 계산
-        team_stats["배당률_숫자"] = (total_pool / team_stats["팀별 총 배팅액"]).round(2)
-        team_stats["1인당 배팅당 환급금"] = team_stats["배당률_숫자"].map('{:.2f}배 수령'.format)
-        team_stats["실시간 배당률"] = team_stats["배당률_숫자"].map('{:.2f}배'.format)
-        
+        team_stats["실시간 배당률"] = (total_pool / team_stats["팀별 총 배팅액"]).round(2)
+        team_stats["실시간 배당률"] = team_stats["실시간 배당률"].map('{:.2f}배'.format)
         team_stats["팀별 총 배팅액"] = team_stats["팀별 총 배팅액"].map('{:,}원'.format)
         team_stats = team_stats.sort_values(by="투표수", ascending=False).reset_index(drop=True)
         
-        team_result = team_stats[["팀명", "투표수", "팀별 총 배팅액", "실시간 배당률", "1인당 배팅당 환급금"]]
+        team_result = team_stats[["팀명", "투표수", "팀별 총 배팅액", "실시간 배당률"]]
         st.dataframe(team_result, use_container_width=True)
     except Exception as e:
-        st.warning("배당률 데이터를 계산하는 중입니다...")
-    
-    st.caption("ℹ️ 개인이 가져가는 최종 상금은 **[본인이 건 금액 × 실시간 배당률]**로 계산됩니다.")
-    st.caption("ℹ️ 예: 2.50배 팀에 20,000원을 배팅하여 적중 시 최종 50,000원을 수령하게 됩니다.")
+        st.warning("배당률 데이터를 요약하는 중입니다...")
+        
+    st.caption("ℹ️ 상단 표의 **[적중 시 예상 상금]**은 본인이 낸 배팅 금액의 크기에 맞춰 실시간으로 차등 계산된 금액입니다.")
 else:
     st.info("아직 배팅에 참여한 사람이 없습니다. 첫 배팅을 입력해 보세요!")
