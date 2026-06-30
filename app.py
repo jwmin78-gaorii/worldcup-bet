@@ -20,12 +20,15 @@ teams_32 = [
 ]
 teams_32.sort()
 
-# 파일 읽기 함수
+# 파일 읽기 함수 (데이터 강제 숫자 변환 추가)
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
             df = pd.read_csv(DATA_FILE)
             if "배팅 금액" in df.columns:
+                # '원'이나 쉼표가 들어가 있다면 제거하고 숫자로 강제 변환
+                df["배팅 금액"] = df["배팅 금액"].astype(str).str.replace("원", "").str.replace(",", "")
+                df["배팅 금액"] = pd.to_numeric(df["배팅 금액"], errors='coerce').fillna(10000).astype(int)
                 return df
         except:
             pass
@@ -50,7 +53,7 @@ with tab1:
         elif name.strip() in df_data["이름"].values:
             st.error("이미 배팅을 하셨습니다! 수정을 원하시면 '내 배팅 수정/취소' 탭을 이용해 주세요.")
         else:
-            new_data = pd.DataFrame([{"이름": name.strip(), "예측 우승팀": selected_team, "배팅 금액": amount}])
+            new_data = pd.DataFrame([{"이름": name.strip(), "예측 우승팀": selected_team, "배팅 금액": int(amount)}])
             df_data = pd.concat([df_data, new_data], ignore_index=True)
             df_data.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
             st.success(f"🎉 {name}님의 배팅이 완료되었습니다! ({selected_team}에 {amount:,}원)")
@@ -74,7 +77,7 @@ with tab2:
                 if datetime.now() > datetime(2026, 7, 4, 23, 59, 59):
                     st.error("⏰ 7월 4일이 지나 배팅 수정이 불가능합니다.")
                 else:
-                    df_data.loc[df_data["이름"] == edit_name.strip(), ["예측 우승팀", "배팅 금액"]] = [new_selected_team, new_amount]
+                    df_data.loc[df_data["이름"] == edit_name.strip(), ["예측 우승팀", "배팅 금액"]] = [new_selected_team, int(new_amount)]
                     df_data.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
                     st.success("배팅 정보가 수정되었습니다!")
                     st.rerun()
@@ -105,7 +108,6 @@ if not df_data.empty:
     
     st.subheader("📈 실시간 팀별 배당률 및 예측 상금")
     
-    # 데이터가 있을 때 확실하게 테이블을 연산하여 보여주도록 변경
     try:
         # 팀별 총 배팅액 계산
         team_stats = df_data.groupby("예측 우승팀")["배팅 금액"].sum().reset_index()
@@ -116,7 +118,7 @@ if not df_data.empty:
         team_counts.columns = ["팀명", "투표수"]
         team_stats = pd.merge(team_stats, team_counts, on="팀명")
         
-        # 배당률 계산 및 포맷팅
+        # 배당률 계산
         team_stats["배당률_숫자"] = (total_pool / team_stats["팀별 총 배팅액"]).round(2)
         team_stats["1인당 배팅당 환급금"] = team_stats["배당률_숫자"].map('{:.2f}배 수령'.format)
         team_stats["실시간 배당률"] = team_stats["배당률_숫자"].map('{:.2f}배'.format)
@@ -124,11 +126,10 @@ if not df_data.empty:
         team_stats["팀별 총 배팅액"] = team_stats["팀별 총 배팅액"].map('{:,}원'.format)
         team_stats = team_stats.sort_values(by="투표수", ascending=False).reset_index(drop=True)
         
-        # 필요한 컬럼만 최종 추출 후 노출
         team_result = team_stats[["팀명", "투표수", "팀별 총 배팅액", "실시간 배당률", "1인당 배팅당 환급금"]]
         st.dataframe(team_result, use_container_width=True)
     except Exception as e:
-        st.warning("배당률 표를 계산하는 중입니다. 잠시 후 새로고침 해주세요.")
+        st.warning("배당률 데이터를 계산하는 중입니다...")
     
     st.caption("ℹ️ 개인이 가져가는 최종 상금은 **[본인이 건 금액 × 실시간 배당률]**로 계산됩니다.")
     st.caption("ℹ️ 예: 2.50배 팀에 20,000원을 배팅하여 적중 시 최종 50,000원을 수령하게 됩니다.")
