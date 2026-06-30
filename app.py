@@ -8,13 +8,13 @@ DATA_FILE = "betting_results.csv"
 # 페이지 제목 설정
 st.title("🏆 시사회 2026 월드컵 우승팀 배팅")
 
-# 32강 진출국 목록
+# 보내주신 대진표 기준 실제 진출국 목록 (총 26개국)
 teams_32 = [
     "남아프리카 공화국", "캐나다", "네덜란드", "모로코", "독일", "파라과이", 
     "프랑스", "스웨덴", "스페인", "오스트리아", "포르투갈", "크로아티아", 
     "벨기에", "세네갈", "미국", "보스니아 헤르체고비나", "브라질", "일본", 
     "코트디부아르", "노르웨이", "멕시코", "에콰도르", "잉글랜드", "콩고민주공화국", 
-    "호주", "이집트", "아르헨티나", "이탈리아", "우루과이", "대한민국", "스위스", "덴마크"
+    "호주", "이집트"
 ]
 teams_32.sort()
 
@@ -61,7 +61,10 @@ with tab2:
         user_row = df_data[df_data["이름"] == edit_name.strip()].iloc[0]
         st.info(f"📢 현재 배팅 내역: **{user_row['예측 우승팀']}**에 **{user_row['배팅 금액']:,}원**")
         
-        new_selected_team = st.selectbox("새로운 우승 예측팀 선택:", teams_32, index=teams_32.index(user_row['예측 우승팀']), key="update_team")
+        # 만약 기존 배팅팀이 새 리스트에 없으면 첫 번째 팀으로 초기화 방지 처리
+        default_index = teams_32.index(user_row['예측 우승팀']) if user_row['예측 우승팀'] in teams_32 else 0
+        
+        new_selected_team = st.selectbox("새로운 우승 예측팀 선택:", teams_32, index=default_index, key="update_team")
         new_amount = st.number_input("새로운 배팅 금액 입력:", min_value=1000, value=int(user_row['배팅 금액']), step=1000, key="update_amount")
         
         col1, col2 = st.columns(2)
