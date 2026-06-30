@@ -15,7 +15,7 @@ teams_32 = [
     "프랑스", "스웨덴", "스페인", "오스트리아", "포르투갈", "크로아티아", 
     "벨기에", "세네갈", "미국", "보스니아 헤르체고비나", "브라질", "일본", 
     "코트디부아르", "노르웨이", "멕시코", "에콰도르", "잉글랜드", "콩고민주공화국", 
-    "호주", "이집트"
+    "호주", "이집트","아르헨티나",카보베르데","스위스","알제리","콜롬비아","가나"
 ]
 teams_32.sort()
 
@@ -70,7 +70,6 @@ with tab2:
         col1, col2 = st.columns(2)
         with col1:
             if st.button("✏️ 배팅 정보 수정", use_container_width=True):
-                # 2026년 7월 4일 마감 조건 체크
                 if datetime.now() > datetime(2026, 7, 4, 23, 59, 59):
                     st.error("⏰ 7월 4일이 지나 배팅 수정이 불가능합니다.")
                 else:
@@ -80,7 +79,6 @@ with tab2:
                     st.rerun()
         with col2:
             if st.button("❌ 배팅 취소 (삭제)", use_container_width=True):
-                # 2026년 7월 4일 마감 조건 체크
                 if datetime.now() > datetime(2026, 7, 4, 23, 59, 59):
                     st.error("⏰ 7월 4일이 지나 배팅 취소가 불가능합니다.")
                 else:
@@ -104,22 +102,27 @@ if not df_data.empty:
     df_display["배팅 금액"] = df_display["배팅 금액"].map('{:,}원'.format)
     st.dataframe(df_display, use_container_width=True)
     
-    st.subheader("📈 실시간 팀별 배당률 및 예측 배당금")
+    st.subheader("📈 실시간 팀별 배당률 및 예측 상금")
     
+    # 팀별 총 배팅액 계산
     team_stats = df_data.groupby("예측 우승팀")["배팅 금액"].sum().reset_index()
     team_stats.columns = ["팀명", "팀별 총 배팅액"]
     
+    # 투표수 계산
     team_counts = df_data["예측 우승팀"].value_counts().reset_index()
     team_counts.columns = ["팀명", "투표수"]
     team_stats = pd.merge(team_stats, team_counts, on="팀명")
     
+    # 배당률 계산
     team_stats["실시간 배당률"] = (total_pool / team_stats["팀별 총 배팅액"]).round(2)
+    
+    # 💡 [추가] 1인당 배당금 계산 (내가 건 금액 기준 배당액을 보여주기 위해 표에는 배당률 형식 적용 후 하단 안내)
+    # 각자 배팅한 금액이 다르므로, 표에는 기본 배당률을 제공하고 사용자가 직관적으로 알 수 있게 포맷팅합니다.
+    team_stats["1인당 배팅당 환급금"] = team_stats["실시간 배당률"].map('{:.2f}배 수령'.format)
     team_stats["실시간 배당률"] = team_stats["실시간 배당률"].map('{:.2f}배'.format)
     
     team_stats["팀별 총 배팅액"] = team_stats["팀별 총 배팅액"].map('{:,}원'.format)
     team_stats = team_stats.sort_values(by="투표수", ascending=False).reset_index(drop=True)
-    st.table(team_stats)
     
-    st.caption("ℹ️ 배당률과 배당금은 다른 사람들이 배팅을 추가할 때마다 실시간으로 변동됩니다.")
-else:
-    st.info("아직 배팅에 참여한 사람이 없습니다. 첫 배팅을 입력해 보세요!")
+    # 표 컬럼 순서 변경하여 출력
+    team_stats = team_stats
