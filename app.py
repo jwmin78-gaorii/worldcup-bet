@@ -21,7 +21,7 @@ def save_data(data):
 betting_data = load_data()
 teams = ["브라질", "프랑스", "아르헨티나", "잉글랜드", "스페인"]
 
-st.title("🏆 월드컵 우승팀 배팅 시스템")
+st.title("🏆 시사회 2026 월드컵 우승팀 배팅 시스템")
 st.markdown("---")
 
 # 1. 배팅 입력 폼
