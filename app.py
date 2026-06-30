@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+from datetime import datetime
 
 # 파일 저장 경로 설정
 DATA_FILE = "betting_results.csv"
@@ -14,7 +15,7 @@ teams_32 = [
     "프랑스", "스웨덴", "스페인", "오스트리아", "포르투갈", "크로아티아", 
     "벨기에", "세네갈", "미국", "보스니아 헤르체고비나", "브라질", "일본", 
     "코트디부아르", "노르웨이", "멕시코", "에콰도르", "잉글랜드", "콩고민주공화국", 
-    "호주", "이집트","아르헨티나","카보베르데","스위스","알제리","콜롬비아","가나"
+    "호주", "이집트"
 ]
 teams_32.sort()
 
@@ -61,7 +62,6 @@ with tab2:
         user_row = df_data[df_data["이름"] == edit_name.strip()].iloc[0]
         st.info(f"📢 현재 배팅 내역: **{user_row['예측 우승팀']}**에 **{user_row['배팅 금액']:,}원**")
         
-        # 만약 기존 배팅팀이 새 리스트에 없으면 첫 번째 팀으로 초기화 방지 처리
         default_index = teams_32.index(user_row['예측 우승팀']) if user_row['예측 우승팀'] in teams_32 else 0
         
         new_selected_team = st.selectbox("새로운 우승 예측팀 선택:", teams_32, index=default_index, key="update_team")
@@ -70,16 +70,24 @@ with tab2:
         col1, col2 = st.columns(2)
         with col1:
             if st.button("✏️ 배팅 정보 수정", use_container_width=True):
-                df_data.loc[df_data["이름"] == edit_name.strip(), ["예측 우승팀", "배팅 금액"]] = [new_selected_team, new_amount]
-                df_data.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
-                st.success("배팅 정보가 수정되었습니다!")
-                st.rerun()
+                # 2026년 7월 4일 마감 조건 체크
+                if datetime.now() > datetime(2026, 7, 4, 23, 59, 59):
+                    st.error("⏰ 7월 4일이 지나 배팅 수정이 불가능합니다.")
+                else:
+                    df_data.loc[df_data["이름"] == edit_name.strip(), ["예측 우승팀", "배팅 금액"]] = [new_selected_team, new_amount]
+                    df_data.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
+                    st.success("배팅 정보가 수정되었습니다!")
+                    st.rerun()
         with col2:
             if st.button("❌ 배팅 취소 (삭제)", use_container_width=True):
-                df_data = df_data[df_data["이름"] != edit_name.strip()]
-                df_data.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
-                st.success("배팅이 정상적으로 취소되었습니다.")
-                st.rerun()
+                # 2026년 7월 4일 마감 조건 체크
+                if datetime.now() > datetime(2026, 7, 4, 23, 59, 59):
+                    st.error("⏰ 7월 4일이 지나 배팅 취소가 불가능합니다.")
+                else:
+                    df_data = df_data[df_data["이름"] != edit_name.strip()]
+                    df_data.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
+                    st.success("배팅이 정상적으로 취소되었습니다.")
+                    st.rerun()
     elif edit_name.strip() != "":
         st.warning("입력하신 이름으로 등록된 배팅 내역이 없습니다.")
 
