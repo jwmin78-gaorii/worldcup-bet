@@ -45,8 +45,16 @@ with tab2:
         new_team = st.selectbox("새로운 팀 선택:", teams_32, index=teams_32.index(user_row['예측 우승팀']))
         new_amount = st.number_input("새로운 금액 (10,000 ~ 50,000):", min_value=10000, max_value=50000, value=int(user_row['배팅 금액']), step=5000)
         c1, c2 = st.columns(2)
-        if c1.button("✏️ 수정"):
-            requests.post(WEB_APP_URL, json={"action": "update", "name": edit_name, "team": new_team, "amount": new_amount})
+	if c1.button("✏️ 수정"):
+            # 금액을 강제로 int로 변환하여 전송
+            final_amount = int(new_amount) 
+            requests.post(WEB_APP_URL, json={
+                "action": "update", 
+                "name": edit_name, 
+                "team": new_team, 
+                "amount": final_amount
+            })
+            st.success("수정 완료!")
             st.rerun()
         if c2.button("❌ 삭제"):
             requests.post(WEB_APP_URL, json={"action": "delete", "name": edit_name})
