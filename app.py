@@ -23,7 +23,6 @@ st.title("🏆 시사회 2026 월드컵 우승팀 배팅")
 
 tab1, tab2 = st.tabs(["🎲 배팅 참여하기", "🛠️ 내 배팅 수정/취소"])
 
-# 1. 배팅 참여 탭
 with tab1:
     n_in = st.text_input("이름", key="n_key")
     t_in = st.selectbox("우승팀", teams_32, key="t_key")
@@ -37,7 +36,6 @@ with tab1:
             st.success("배팅 완료!")
             st.rerun()
 
-# 2. 수정/취소 탭
 with tab2:
     edit_name = st.text_input("조회할 이름", key="e_key")
     df = get_data()
@@ -57,22 +55,24 @@ with tab2:
             requests.post(WEB_APP_URL, json={"action": "delete", "name": edit_name})
             st.success("삭제 완료!")
             st.rerun()
-    elif edit_name:
-        st.warning("등록된 데이터가 없습니다.")
 
-# 3. 배팅 현황 및 배당률 계산
 st.subheader("📊 현재 배팅 현황 및 예상 상금")
 df = get_data()
 if not df.empty:
     total = df["배팅 금액"].sum()
     st.metric("💰 총 누적 판돈", f"{total:,} 원")
     
-    # 배당률 계산 로직
+    # [배당률 계산 수정]
     team_sums = df.groupby("예측 우승팀")["배팅 금액"].sum()
-    df["적중 시 예상 상금"] = df.apply(lambda r: int((total / team_sums[r["예측 우승팀"]]) * r["배팅 금액"]), axis=1)
     
-    # 데이터 출력용 포맷팅
-    disp_df = df.copy()
+    def get_prize(row):
+        team_total = team_sums[row["예측 우승팀"]]
+        return int((total / team_total) * row["배팅 금액"]) if team_total > 0 else 0
+    
+    df["적중 시 예상 상금"] = df.apply(get_prize, axis=1)
+    
+    # [화면 출력 전 명시적 열 선택 및 포맷팅]
+    disp_df = df[["이름", "예측 우승팀", "배팅 금액", "적중 시 예상 상금"]].copy()
     disp_df["배팅 금액"] = disp_df["배팅 금액"].apply(lambda x: f"{x:,}원")
     disp_df["적중 시 예상 상금"] = disp_df["적중 시 예상 상금"].apply(lambda x: f"{x:,}원")
     
