@@ -23,6 +23,7 @@ st.title("🏆 시사회 2026 월드컵 우승팀 배팅")
 
 tab1, tab2 = st.tabs(["🎲 배팅 참여하기", "🛠️ 내 배팅 수정/취소"])
 
+# 1. 배팅 참여 탭
 with tab1:
     n_in = st.text_input("이름", key="n_key")
     t_in = st.selectbox("우승팀", teams_32, key="t_key")
@@ -30,17 +31,18 @@ with tab1:
 
     if st.button("배팅 제출하기"):
         if not n_in: st.error("이름을 입력하세요.")
-        elif a_in < 10000 or a_in > 50000: st.error(f"입력하신 {a_in:,}원은 범위(1~5만원)를 벗어났습니다!")
+        elif a_in < 10000 or a_in > 50000: st.error("범위(1~5만원)를 벗어났습니다!")
         else:
             requests.post(WEB_APP_URL, json={"action": "add", "name": n_in, "team": t_in, "amount": int(a_in)})
             st.success("배팅 완료!")
             st.rerun()
 
+# 2. 수정/취소 탭
 with tab2:
     edit_name = st.text_input("조회할 이름", key="e_key")
-    df = get_data()
-    if not df.empty and edit_name in df["이름"].values:
-        row = df[df["이름"] == edit_name].iloc[0]
+    df_raw = get_data()
+    if not df_raw.empty and edit_name in df_raw["이름"].values:
+        row = df_raw[df_raw["이름"] == edit_name].iloc[0]
         st.info(f"현재: {row['예측 우승팀']} / {row['배팅 금액']:,}원")
         
         new_team = st.selectbox("팀 수정", teams_32, index=teams_32.index(row['예측 우승팀']), key="nt_key")
@@ -56,26 +58,25 @@ with tab2:
             st.success("삭제 완료!")
             st.rerun()
 
+# 3. 배팅 현황 및 예상 상금 (항상 표시)
 st.subheader("📊 현재 배팅 현황 및 예상 상금")
 df = get_data()
+
 if not df.empty:
     total = df["배팅 금액"].sum()
     st.metric("💰 총 누적 판돈", f"{total:,} 원")
     
-    # [배당률 계산 수정]
-    team_sums = df.groupby("예측 우승팀")["배팅 금액"].sum()
+    # [강제 필드 생성] 팀별 총액을 계산하여 병합
+    team_sums = df.groupby("예측 우승팀")["배팅 금액"].transform('sum')
+    df["적중 시 예상 상금"] = ((total / team_sums) * df["배팅 금액"]).astype(int)
     
-    def get_prize(row):
-        team_total = team_sums[row["예측 우승팀"]]
-        return int((total / team_total) * row["배팅 금액"]) if team_total > 0 else 0
-    
-    df["적중 시 예상 상금"] = df.apply(get_prize, axis=1)
-    
-    # [화면 출력 전 명시적 열 선택 및 포맷팅]
-    disp_df = df[["이름", "예측 우승팀", "배팅 금액", "적중 시 예상 상금"]].copy()
+    # 출력용 포맷팅
+    disp_df = df.copy()
     disp_df["배팅 금액"] = disp_df["배팅 금액"].apply(lambda x: f"{x:,}원")
     disp_df["적중 시 예상 상금"] = disp_df["적중 시 예상 상금"].apply(lambda x: f"{x:,}원")
     
     st.dataframe(disp_df, use_container_width=True)
 else:
+    # 데이터가 없을 때도 필드 구조는 보여줌
+    st.dataframe(pd.DataFrame(columns=["이름", "예측 우승팀", "배팅 금액", "적중 시 예상 상금"]), use_container_width=True)
     st.info("아직 참여자가 없습니다.")
