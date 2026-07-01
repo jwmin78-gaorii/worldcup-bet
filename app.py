@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 
 # 어제 사용하시던 그 주소를 여기에 다시 넣어주세요
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwiIwAXyoMmkJ6sHrA7cKsWxVhEUoUlLDWHBCRtrVzzdoXH_EDnvixfO6UsjCG5MXVgmw/exec"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz9oBHLzdF3jR1_iQwFIRLs87Hde8ba_r6khsQEQmMHGULCuq15Bja6k9V9slgQb26Sug/exec"
 
 teams_32 = sorted(["남아프리카 공화국", "캐나다", "네덜란드", "모로코", "독일", "파라과이", "프랑스", "스웨덴", "스페인", "오스트리아", "포르투갈", "크로아티아", "벨기에", "세네갈", "미국", "보스니아 헤르체고비나", "브라질", "일본", "코트디부아르", "노르웨이", "멕시코", "에콰도르", "잉글랜드", "콩고민주공화국", "호주", "이집트", "아르헨티나", "카보베르데", "스위스", "알제리", "콜롬비아", "가나"])
 
