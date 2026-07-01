@@ -26,10 +26,9 @@ with tab1:
     n_in = st.text_input("이름", key="n_key")
     t_in = st.selectbox("우승팀", teams_32, key="t_key")
     a_in = st.number_input("배팅 금액 (10,000 ~ 50,000)", min_value=10000, max_value=50000, value=10000, step=5000, key="a_key")
-
     if st.button("배팅 제출하기"):
         requests.post(WEB_APP_URL, json={"action": "add", "name": n_in, "team": t_in, "amount": int(a_in)})
-        st.success("완료!")
+        st.success("배팅 완료!")
         st.rerun()
 
 with tab2:
@@ -38,34 +37,34 @@ with tab2:
     if not df.empty and edit_name in df["이름"].values:
         row = df[df["이름"] == edit_name].iloc[0]
         st.info(f"현재: {row['예측 우승팀']} / {row['배팅 금액']:,.0f}원")
-        
         new_team = st.selectbox("팀 수정", teams_32, index=teams_32.index(row['예측 우승팀']), key="nt_key")
         new_amount = st.number_input("금액 수정", min_value=10000, max_value=50000, value=int(row['배팅 금액']), step=5000, key="na_key")
-        
         c1, c2 = st.columns(2)
-        if c1.button("✏️ 수정"):
+        if c1.button("✏️ 수정 적용"):
             requests.post(WEB_APP_URL, json={"action": "update", "name": edit_name, "team": new_team, "amount": int(new_amount)})
             st.rerun()
         if c2.button("❌ 삭제"):
             requests.post(WEB_APP_URL, json={"action": "delete", "name": edit_name})
             st.rerun()
 
-st.subheader("📊 현재 배팅 현황")
+st.subheader("📊 현재 배팅 현황 및 예상 상금")
 df = get_data()
 if not df.empty:
     total = df["배팅 금액"].sum()
     st.metric("💰 총 누적 판돈", f"{total:,} 원")
     
-    # 1. 메인 배팅 현황 테이블
+    # 1. 계산 및 데이터 구성
     team_sums = df.groupby("예측 우승팀")["배팅 금액"].transform('sum')
     df["적중 시 예상 상금"] = ((total / team_sums) * df["배팅 금액"]).astype(int)
     
     disp_df = df.copy()
     disp_df["배팅 금액"] = disp_df["배팅 금액"].apply(lambda x: f"{x:,.0f}원")
     disp_df["적중 시 예상 상금"] = disp_df["적중 시 예상 상금"].apply(lambda x: f"{x:,.0f}원")
+    
+    # 배팅 현황 출력 (강제 필드 순서 지정)
     st.table(disp_df[["이름", "예측 우승팀", "배팅 금액", "적중 시 예상 상금"]])
     
-    # 2. 실시간 배당률 요약 표
+    # 2. 실시간 팀별 배당률 요약 표 추가
     st.subheader("📈 실시간 팀별 배당률 요약")
     summary = df.groupby("예측 우승팀").agg(투표수=("이름", "count"), 팀별_총_배팅액=("배팅 금액", "sum")).reset_index()
     summary["실시간 배당률"] = (total / summary["팀별_총_배팅액"]).map('{:.2f}배'.format)
@@ -73,4 +72,4 @@ if not df.empty:
     summary.columns = ["팀명", "투표수", "팀별 총 배팅액", "실시간 배당률"]
     st.table(summary)
 else:
-    st.info("참여자가 없습니다.")
+    st.info("아직 참여자가 없습니다.")
