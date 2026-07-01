@@ -47,9 +47,11 @@ with tab2:
         c1, c2 = st.columns(2)
         if c1.button("✏️ 수정 적용"):
             requests.post(WEB_APP_URL, json={"action": "update", "name": edit_name, "team": new_team, "amount": int(new_amount)})
+            st.success("수정 완료!")
             st.rerun()
         if c2.button("❌ 삭제"):
             requests.post(WEB_APP_URL, json={"action": "delete", "name": edit_name})
+            st.success("삭제 완료!")
             st.rerun()
 
 st.subheader("📊 현재 배팅 현황 및 예상 상금")
@@ -58,18 +60,16 @@ if not df.empty:
     total = df["배팅 금액"].sum()
     st.metric("💰 총 누적 판돈", f"{total:,} 원")
     
-    # [핵심] 계산 로직
+    # 1. 계산 로직
     team_sums = df.groupby("예측 우승팀")["배팅 금액"].transform('sum')
     df["적중 시 예상 상금"] = ((total / team_sums) * df["배팅 금액"]).astype(int)
     
-    # [핵심] 출력용 데이터프레임 생성 및 순서 고정
+    # 2. 출력용 데이터 구성 (컬럼 순서 지정)
     disp_df = df.copy()
     disp_df["배팅 금액"] = disp_df["배팅 금액"].apply(lambda x: f"{x:,}원")
     disp_df["적중 시 예상 상금"] = disp_df["적중 시 예상 상금"].apply(lambda x: f"{x:,}원")
-    
-    # 컬럼 순서 강제 지정
     disp_df = disp_df[["이름", "예측 우승팀", "배팅 금액", "적중 시 예상 상금"]]
     
     st.dataframe(disp_df, use_container_width=True)
 else:
-    st.info("아직 참여자가 없습니다.")
+    st.info("참여자가 없습니다.")
