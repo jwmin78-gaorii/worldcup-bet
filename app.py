@@ -20,39 +20,50 @@ st.title("🏆 시사회 2026 월드컵 우승팀 배팅")
 tab1, tab2 = st.tabs(["🎲 배팅 참여하기", "🛠️ 내 배팅 수정/취소"])
 
 with tab1:
-    # 키를 지정하여 스트림릿이 위젯을 추적하게 함
-    n_in = st.text_input("이름", key="name_key")
-    t_in = st.selectbox("우승팀", teams_32, key="team_key")
-    a_in = st.number_input("배팅 금액 (10,000 ~ 50,000)", min_value=0, max_value=100000, value=10000, step=5000, key="amt_key")
+    n_in = st.text_input("이름", key="n_key")
+    t_in = st.selectbox("우승팀", teams_32, key="t_key")
+    a_in = st.number_input("배팅 금액 (10,000 ~ 50,000)", min_value=0, max_value=100000, value=10000, step=5000, key="a_key")
 
     if st.button("배팅 제출하기"):
-        # 1. 제출 버튼 누른 직후 '현재 입력값(a_in)'을 즉시 검사
-        if not n_in:
-            st.error("이름을 입력하세요.")
-        elif a_in < 10000 or a_in > 50000:
-            # 2. 범위를 벗어나면 여기서 딱 멈춤 (아무런 서버 요청 없음)
-            st.error(f"입력하신 {a_in:,}원은 배팅 가능 범위(1~5만원)를 벗어났습니다!")
+        if not n_in: st.error("이름을 입력하세요.")
+        elif a_in < 10000 or a_in > 50000: st.error(f"입력하신 {a_in:,}원은 범위(1~5만원)를 벗어났습니다!")
         else:
-            # 3. 정상 범위일 때만 서버로 전송
             requests.post(WEB_APP_URL, json={"action": "add", "name": n_in, "team": t_in, "amount": int(a_in)})
             st.success("배팅 완료!")
             st.rerun()
 
 with tab2:
-    edit_name = st.text_input("조회할 이름", key="edit_key")
+    edit_name = st.text_input("조회할 이름", key="e_key")
     df = get_data()
     if not df.empty and edit_name in df["이름"].values:
         row = df[df["이름"] == edit_name].iloc[0]
-        new_team = st.selectbox("팀 수정", teams_32, index=teams_32.index(row['예측 우승팀']), key="team_up")
-        new_amount = st.number_input("금액 수정", min_value=10000, max_value=50000, value=int(row['배팅 금액']), step=5000, key="amt_up")
+        st.info(f"현재: {row['예측 우승팀']} / {row['배팅 금액']:,}원")
+        
+        new_team = st.selectbox("팀 수정", teams_32, index=teams_32.index(row['예측 우승팀']), key="nt_key")
+        new_amount = st.number_input("금액 수정", min_value=10000, max_value=50000, value=int(row['배팅 금액']), step=5000, key="na_key")
         
         c1, c2 = st.columns(2)
         if c1.button("✏️ 수정 적용"):
             requests.post(WEB_APP_URL, json={"action": "update", "name": edit_name, "team": new_team, "amount": int(new_amount)})
+            st.success("수정 완료!")
             st.rerun()
         if c2.button("❌ 삭제"):
             requests.post(WEB_APP_URL, json={"action": "delete", "name": edit_name})
+            st.success("삭제 완료!")
             st.rerun()
 
-st.subheader("📊 현황")
-st.dataframe(get_data(), use_container_width=True)
+st.subheader("📊 현재 배팅 현황")
+df = get_data()
+if not df.empty:
+    total = df["배팅 금액"].sum()
+    st.metric("💰 총 누적 판돈", f"{total:,} 원")
+    team_sums = df.groupby("예측 우승팀")["배팅 금액"].sum()
+    df["적중 시 예상 상금"] = df.apply(lambda r: int((total / team_sums[r["예측 우승팀"]]) * r["배팅 금액"]), axis=1)
+    
+    # 출력용 포맷팅
+    disp_df = df.copy()
+    disp_df["배팅 금액"] = disp_df["배팅 금액"].map('{:,}원'.format)
+    disp_df["적중 시 예상 상금"] = disp_df["적중 시 예상 상금"].map('{:,}원'.format)
+    st.dataframe(disp_df, use_container_width=True)
+else:
+    st.info("참여자가 없습니다.")
