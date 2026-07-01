@@ -2,11 +2,12 @@ import streamlit as st
 import pandas as pd
 import requests
 
-# 새로운 배포 주소를 반영하였습니다.
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyWGY8b65Xyw7_jve7lwNLRBVxyTk27T_SugWFGD3QuUIChLEJI4HPpla55vvINrQ3pAg/exec"
+# 전달해주신 최신 배포 주소를 적용했습니다.
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycby3gCUrEQyRzA5RH5jsKcaiSGoiDrdWyHJ_oMBvyQHYLzmImht_nHtmpNNYWBCldYFMyg/exec"
 
 teams_32 = sorted(["남아프리카 공화국", "캐나다", "네덜란드", "모로코", "독일", "파라과이", "프랑스", "스웨덴", "스페인", "오스트리아", "포르투갈", "크로아티아", "벨기에", "세네갈", "미국", "보스니아 헤르체고비나", "브라질", "일본", "코트디부아르", "노르웨이", "멕시코", "에콰도르", "잉글랜드", "콩고민주공화국", "호주", "이집트", "아르헨티나", "카보베르데", "스위스", "알제리", "콜롬비아", "가나"])
 
+@st.cache_data(ttl=0)
 def get_data():
     try:
         response = requests.get(WEB_APP_URL)
